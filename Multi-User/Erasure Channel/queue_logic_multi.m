@@ -7,10 +7,7 @@ function [avg_aoi_per_user, avg_aoi_system] = queue_logic_multi(arrivals, servic
     end
     
     % =====================================================================
-    % 1. CÁLCULO DO AOI DO SISTEMA (Cenário A: Fusão)
-    % =====================================================================
-    % Para o sistema, não importa o ID do usuário (coluna 3), apenas que 
-    % uma atualização fresca chegou. Usamos todos os pacotes completados.
+    % 1. System AoI
     if isempty(completed)
         avg_aoi_system = 0;
     else
@@ -19,12 +16,11 @@ function [avg_aoi_per_user, avg_aoi_system] = queue_logic_multi(arrivals, servic
     end
 
     % =====================================================================
-    % 2. CÁLCULO DO AOI POR USUÁRIO (Individual)
+    % 2. User AoI
     % =====================================================================
     avg_aoi_per_user = zeros(num_users, 1);
     
     for u = 1:num_users
-        % Filtra apenas pacotes deste usuário
         mask = (completed(:, 3) == u);
         data_u = completed(mask, 1:2);
         
@@ -36,49 +32,37 @@ function [avg_aoi_per_user, avg_aoi_system] = queue_logic_multi(arrivals, servic
     end
 end
 
-%% --- SUBFUNÇÃO AUXILIAR PARA CÁLCULO DE ÁREA ---
+
 function avg_val = calc_aoi_area(data)
-    % data espera: [Completion_Time, Generation_Time]
+    % data: [Completion_Time, Generation_Time]
     
-    % Ordena por tempo de conclusão
+    % Sort by time
     data = sortrows(data, 1);
     C = data(:, 1); 
     G = data(:, 2); 
     
     area = 0; 
-    t_now = 0;      % Tempo atual da simulação (varredura)
-    current_aoi_start = 0; % Generation time do pacote ativo no sistema
+    t_now = 0;      
+    current_aoi_start = 0; 
     
     for k = 1:length(C)
         t_fin = C(k);
         t_gen = G(k);
         
-        % Se o pacote entregue for MAIS VELHO que o que já temos,
-        % ele não reduz o AoI (em sistemas ideais). 
-        % Mas na sua lógica de fila, pacotes velhos já foram descartados, 
-        % então t_gen será sempre >= current_aoi_start (exceto desordem rara).
-        % Por segurança, garantimos a consistência:
         if t_gen < current_aoi_start
-             % Pacote obsoleto chegou fora de ordem (raro em M/G/1 FIFO/LCFS simples)
-             % Tratamos apenas avançando o tempo, sem reduzir a idade base
-             % (Opcional: pular lógica de trapézio normal)
+
         end
 
-        % Intervalo [t_now, t_fin]
+        % Interval [t_now, t_fin]
         dt = t_fin - t_now;
         
-        % Cálculo da Área Trapezoidal
-        % Altura Inicial = t_now - current_aoi_start
-        % Altura Final   = t_fin - current_aoi_start
+        % Area
         age_start = t_now - current_aoi_start;
         age_end   = t_fin - current_aoi_start;
         
         area = area + (age_start + age_end) * dt / 2;
         
-        t_now = t_fin;
-        
-        % A idade cai para (t_fin - t_gen) instantaneamente
-        % O novo "marco zero" da idade é o t_gen
+        t_now = t_fin;      
         current_aoi_start = t_gen; 
     end
     
@@ -90,7 +74,6 @@ function avg_val = calc_aoi_area(data)
 end
 
 %% --- M/G/1/1 NON-PREEMPTIVE (WAITING) ---
-% (Mantido igual ao seu original, pois para "Mesmo Objeto" a lógica de descarte global é válida)
 function completed = run_lcfs_np(arr, srv)
     N = size(arr, 1);
     completed = [];
@@ -146,7 +129,7 @@ function completed = run_lcfs_p(arr, srv)
         if potential_finish <= arrival_next
             completed = [completed; potential_finish, arrival_curr, arr(k, 2)];
         else
-            % Interrompido pelo próximo pacote (global)
+            
         end
     end
     

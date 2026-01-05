@@ -1,12 +1,10 @@
 function [Sim_NP, Sim_P, Sim_Sys_NP, Sim_Sys_P] = sim_mc_multi_erasure(conf)
 
     num_L = length(conf.lambda_total_vec);
-    
-    % Resultados por usuário
+ 
     Sim_NP = zeros(conf.num_users, num_L);
     Sim_P  = zeros(conf.num_users, num_L);
     
-    % Resultados do Sistema (Novo)
     Sim_Sys_NP = zeros(1, num_L);
     Sim_Sys_P  = zeros(1, num_L);
 
@@ -14,12 +12,11 @@ function [Sim_NP, Sim_P, Sim_Sys_NP, Sim_Sys_P] = sim_mc_multi_erasure(conf)
         lambda_tot = conf.lambda_total_vec(j);
         lambda_user = lambda_tot / conf.num_users;
         
-        % Acumuladores
         acc_aoi_np = zeros(conf.num_users, 1);
         acc_aoi_p  = zeros(conf.num_users, 1);
         
-        acc_sys_np = 0; % Sistema NP
-        acc_sys_p  = 0; % Sistema P
+        acc_sys_np = 0; 
+        acc_sys_p  = 0; 
         
         for k_mc = 1:conf.N_MC
             % Generate arrivals
@@ -64,11 +61,7 @@ function [Sim_NP, Sim_P, Sim_Sys_NP, Sim_Sys_P] = sim_mc_multi_erasure(conf)
         Sim_Sys_NP(j) = v * mean_aoi_Sys_NP;
         Sim_Sys_P(j)  = v * mean_aoi_Sys_P ;
 
-        
-        % Nota: Para o Sistema, a "velocidade" é ambígua se os usuários tiverem v diferentes.
-        % Se todos v=1, ok. Se v diferentes, o "AoI do Sistema" geralmente é puramente temporal (v=1).
-        % Se quiser ponderar, precisaria definir uma velocidade média do sistema. 
-        % Aqui deixarei puro (tempo).
+      
     end
 end
 
