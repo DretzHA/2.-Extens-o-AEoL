@@ -7,7 +7,7 @@ conf.k = 16;
 conf.delta = 0.50;    
 conf.velocities = 1 * ones(2, 1); 
 
-conf.Symbol_Duration = 1e-1; 
+conf.Symbol_Duration = 1; 
 
 % Parâmetros do Canal
 avg_service_time = conf.k / (1 - conf.delta);
@@ -18,7 +18,7 @@ conf.rho_total_vec = 0.1:0.5:5;
 conf.lambda_total_vec = conf.rho_total_vec * mu_eff; 
 
 % --- Simulação baseada em TEMPO ---
-conf.Sim_Time = 500;   % Tempo total de simulação (segundos)
+conf.Sim_Time = 5000;   % Tempo total de simulação (segundos)
 conf.N_MC = 100;      % Monte Carlo
 
 conf.sensor_sigma = 0; 

@@ -3,8 +3,8 @@ clc; clear; close all;
 %% ========================================================================
 %  CONFIGURAÇÕES GERAIS
 %  ========================================================================
-conf.k = 16;          
-conf.delta = 0.8;    
+conf.k = 100;          
+conf.delta = 0.2;    
 conf.velocities = 1*ones(10, 1); 
 
 conf.Symbol_Duration = 1; 
@@ -16,13 +16,13 @@ avg_service_time_sec = avg_service_time * conf.Symbol_Duration;
 
 mu_eff = 1 / avg_service_time_sec; 
 
-conf.rho_total_vec = 0.1:0.5:5; 
+conf.rho_total_vec = 0.1:1:100; 
 conf.lambda_total_vec = conf.rho_total_vec * mu_eff; 
 
-conf.N_updates = 100;   
-conf.N_MC = 5000;
+conf.N_updates = 200;   
+conf.N_MC = 3000;
 
-user_scenarios = [1 2 3]; 
+user_scenarios = [1]; 
 
 %% ========================================================================
 %  2. Simulation
