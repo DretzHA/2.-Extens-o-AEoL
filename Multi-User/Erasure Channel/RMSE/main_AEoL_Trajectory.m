@@ -4,7 +4,7 @@ clc; clear; close all;
 %  CONFIGURAÇÕES
 %  ========================================================================
 conf.k = 16;          
-conf.delta = 0.50;    
+conf.delta = 0.2;    
 conf.velocities = 1 * ones(2, 1); 
 
 conf.Symbol_Duration = 1e-1; 
@@ -14,19 +14,18 @@ avg_service_time = conf.k / (1 - conf.delta);
 avg_service_time_sec = avg_service_time * conf.Symbol_Duration;
 mu_eff = 1 / avg_service_time_sec; 
 
-conf.rho_total_vec = 0.1:0.5:5; 
+conf.rho_total_vec = 0.1:0.25:5; 
 conf.lambda_total_vec = conf.rho_total_vec * mu_eff; 
 
 % --- Simulação baseada em TEMPO ---
-conf.Sim_Time = 500;   % Tempo total de simulação (segundos)
-conf.N_MC = 100;      % Monte Carlo
-
-conf.sensor_sigma = 0; 
+conf.Sim_Time = 250;   
+conf.N_MC = 100;      
+conf.sensor_sigma = 2.0; 
 
 %% ========================================================================
 %  SIMULAÇÃO
 %  ========================================================================
-user_scenarios = [2]; % Pode alterar para [2, 5] para testar mais usuarios
+user_scenarios = [2]; 
 
 for i = 1:length(user_scenarios)
     n_u = user_scenarios(i);
@@ -38,23 +37,28 @@ for i = 1:length(user_scenarios)
     
     fprintf('Simulating AEoL for N=%d users, Time=%.1fs...\n', n_u, conf.Sim_Time);
    
-    % Simulação (Retorna as matrizes de User e os vetores de System)
-    [Sim_AEoL_NP, Sim_AEoL_P, Sim_Sys_NP, Sim_Sys_P, Thr_NP, Thr_P] = sim_mc_aeol_trajectory(conf);
+    % Chama simulação (com todas as saídas definidas anteriormente)
+    [Sim_AEoL_NP, Sim_AEoL_P, Sim_Sys_NP, Sim_Sys_P, Thr_NP, Thr_P, ...
+     Sim_Act_Time_NP, Sim_Act_Time_P, Sim_User_Counts_NP, Sim_User_Counts_P] = sim_mc_aeol_trajectory(conf);
     
     % Calcular totais absolutos
     Total_Pkts_NP = Thr_NP * conf.Sim_Time;
     Total_Pkts_P  = Thr_P  * conf.Sim_Time;
 
-
-     % ---------------------------------------------------------------------
-    % Theory
+    %% ---------------------------------------------------------------------
+    %  THEORY CALCULATION
     % ---------------------------------------------------------------------
     aeol_theory_np = zeros(size(conf.lambda_total_vec));
     aeol_theory_p  = zeros(size(conf.lambda_total_vec));
-    v = conf.velocities(1);
+    v = conf.velocities(1); % Assume velocidade igual ou pega do primeiro
     
     for j = 1:length(conf.lambda_total_vec)
         lambda_val = conf.lambda_total_vec(j); 
+        % Ajuste: A teoria geralmente é 'per user' ou 'aggregate'. 
+        % Se a teoria for para o fluxo total, usa lambda_val. 
+        % Se for para comparar com o User, usaria lambda_val/n_u.
+        % Aqui seguimos o snippet (lambda_val direto).
+        
         lambda_per_slot = lambda_val * conf.Symbol_Duration;
         
         % --- NP Theory (Slots) ---
@@ -70,7 +74,7 @@ for i = 1:length(user_scenarios)
     end
 
     %% ====================================================================
-    %  FIGURA 1: Resultados de AEoL (Sistema + Usuários)
+    %  FIGURA 1: Resultados de AEoL (Sistema + Usuários + Teoria)
     %  ====================================================================
     fig_name_aeol = sprintf('AEoL Results - %d Users', n_u);
     figure('Name', fig_name_aeol, 'Color', 'w', 'Position', [50 100 800 600]);
@@ -80,19 +84,18 @@ for i = 1:length(user_scenarios)
     
     color_sys_p  = [0 0.4470 0.7410];      % Azul
     color_sys_np = [0.8500 0.3250 0.0980]; % Laranja
-    color_theo   = [0.15 0.15 0.15];  
+    color_theo   = [0.15 0.15 0.15];       % Cinza escuro
     
     user_colors = lines(n_u); 
-
-    % Theory NP
+    
+    % --- Theory Plots ---
     plot(conf.lambda_total_vec, aeol_theory_np, ...
         'LineStyle', '-', 'Color', color_theo, 'LineWidth', 2.5, ...
         'DisplayName', 'Theory (NP)');
         
-    % Theory P
     plot(conf.lambda_total_vec, aeol_theory_p, ...
         'LineStyle', '--', 'Color', color_theo, 'LineWidth', 2.5, ...
-        'DisplayName', 'Theory (P)')
+        'DisplayName', 'Theory (P)');
     
     % --- Plot: Usuários Individuais ---
     for u = 1:n_u
@@ -112,7 +115,7 @@ for i = 1:length(user_scenarios)
     % "Dummy plots" para criar a legenda cinza dos usuários
     plot(NaN, NaN, '-', 'Color', [0.5 0.5 0.5], 'LineWidth', 1.0, 'DisplayName', 'Indiv. Users (NP)');
     plot(NaN, NaN, ':', 'Color', [0.5 0.5 0.5], 'LineWidth', 1.0, 'DisplayName', 'Indiv. Users (P)');
-
+    
     % --- Plot: Sistema (Média) ---
     % System NP
     plot(conf.lambda_total_vec, Sim_Sys_NP, ...
@@ -166,6 +169,35 @@ for i = 1:length(user_scenarios)
     ylabel('Total Updates Processed (Count)', 'Interpreter', 'latex');
     title(sprintf('Total Packets Processed (T = %.0fs)', conf.Sim_Time), 'Interpreter', 'latex');
     legend('Location', 'best');
+    
+    drawnow;
+
+    %% ====================================================================
+    %  FIGURA 3: Estatísticas por Usuário (Extra)
+    %  ====================================================================
+    figure('Name', sprintf('User Stats - %d Users', n_u), 'Color', 'w', 'Position', [150 50 1000 500]);
+    
+    subplot(1,2,1); hold on; grid on; box on;
+    set(gca, 'FontSize', 11, 'TickLabelInterpreter', 'latex');
+    for u = 1:n_u
+        col = user_colors(u, :);
+        plot(conf.lambda_total_vec, Sim_Act_Time_NP(u, :), '-', 'Color', col, 'LineWidth', 1.5);
+        plot(conf.lambda_total_vec, Sim_Act_Time_P(u, :), '--', 'Color', col, 'LineWidth', 1.5);
+    end
+    xlabel('$\lambda_{tot}$', 'Interpreter','latex');
+    ylabel('Effective Actuation Time (s)', 'Interpreter','latex');
+    title(sprintf('Actuation Duration (Total T=%.0fs)', conf.Sim_Time), 'Interpreter','latex');
+
+    subplot(1,2,2); hold on; grid on; box on;
+    set(gca, 'FontSize', 11, 'TickLabelInterpreter', 'latex');
+    for u = 1:n_u
+        col = user_colors(u, :);
+        plot(conf.lambda_total_vec, Sim_User_Counts_NP(u, :), '-', 'Color', col, 'LineWidth', 1.5);
+        plot(conf.lambda_total_vec, Sim_User_Counts_P(u, :), '--', 'Color', col, 'LineWidth', 1.5);
+    end
+    xlabel('$\lambda_{tot}$', 'Interpreter','latex');
+    ylabel('Processed Packets per User', 'Interpreter','latex');
+    title('Packets per User', 'Interpreter','latex');
     
     drawnow;
 end
