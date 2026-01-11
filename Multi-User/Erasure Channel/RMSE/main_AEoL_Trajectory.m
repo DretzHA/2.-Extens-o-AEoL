@@ -5,7 +5,7 @@ clc; clear; close all;
 %  ========================================================================
 conf.k = 16;          
 conf.delta = 0.2;    
-conf.velocities = 1 * ones(2, 1); 
+velocity = 1; 
 
 conf.Symbol_Duration = 1e-1; 
 
@@ -18,9 +18,11 @@ conf.rho_total_vec = 0.1:0.25:5;
 conf.lambda_total_vec = conf.rho_total_vec * mu_eff; 
 
 % --- Simulação baseada em TEMPO ---
-conf.Sim_Time = 250;   
-conf.N_MC = 100;      
-conf.sensor_sigma = 2.0; 
+conf.Sim_Time = 500;   
+conf.N_MC = 500;      
+conf.sensor_sigma = 8.0; 
+
+
 
 %% ========================================================================
 %  SIMULAÇÃO
@@ -29,11 +31,11 @@ user_scenarios = [2];
 
 for i = 1:length(user_scenarios)
     n_u = user_scenarios(i);
-    conf.num_users = n_u;
-    
-    if length(conf.velocities) < n_u
-        conf.velocities = 2 * ones(n_u, 1); 
-    end
+    conf.num_users = n_u;  
+    conf.velocities = velocity * ones(n_u, 1); 
+
+    %plot_sawtooth_trajectory(conf, n_u);
+    plot_trajectory_tracking(conf);
     
     fprintf('Simulating AEoL for N=%d users, Time=%.1fs...\n', n_u, conf.Sim_Time);
    
@@ -130,8 +132,8 @@ for i = 1:length(user_scenarios)
         'DisplayName', 'SYSTEM (P)');
     
     % Formatação
-    xlabel('Total Update Rate $\lambda_{tot}$', 'Interpreter', 'latex', 'FontSize', 14);
-    ylabel('Average AEoL $\bar{\Delta}$ (m)', 'Interpreter', 'latex', 'FontSize', 14);
+    xlabel('Total Update Rate', 'Interpreter', 'latex', 'FontSize', 14);
+    ylabel('Average AEoL (m)', 'Interpreter', 'latex', 'FontSize', 14);
     title(sprintf('AEoL Analysis: %d Users', n_u), 'Interpreter', 'latex', 'FontSize', 14);
     
     lgd = legend('Location', 'northeast', 'NumColumns', 1, 'FontSize', 10);
