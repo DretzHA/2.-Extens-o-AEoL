@@ -4,14 +4,13 @@ clc; clear; close all;
 %  CONFIGURAÇÕES
 %  ========================================================================
 conf.k = 16;          
-conf.delta = 0.20;    
+conf.delta = 0.05;    
 velocity = 1; 
 
 conf.Symbol_Duration = 1e-1; 
 
 % Parâmetros do Canal
-avg_service_time = conf.k / (1 - conf.delta);
-avg_service_time_sec = avg_service_time * conf.Symbol_Duration;
+avg_service_time_sec = conf.k * conf.Symbol_Duration;
 mu_eff = 1 / avg_service_time_sec; 
 
 conf.rho_total_vec = 0.1:0.25:5; 
@@ -35,7 +34,7 @@ for i = 1:length(user_scenarios)
     conf.velocities = velocity * ones(n_u, 1); 
 
     plot_sawtooth_trajectory(conf, n_u);
-    plot_trajectory_tracking(conf);
+    % plot_trajectory_tracking(conf);
     
     fprintf('Simulating AEoL for N=%d users, Time=%.1fs...\n', n_u, conf.Sim_Time);
    
@@ -46,34 +45,6 @@ for i = 1:length(user_scenarios)
     % Calcular totais absolutos
     Total_Pkts_NP = Thr_NP * conf.Sim_Time;
     Total_Pkts_P  = Thr_P  * conf.Sim_Time;
-
-    %% ---------------------------------------------------------------------
-    %  THEORY CALCULATION
-    % ---------------------------------------------------------------------
-    aeol_theory_np = zeros(size(conf.lambda_total_vec));
-    aeol_theory_p  = zeros(size(conf.lambda_total_vec));
-    v = conf.velocities(1); % Assume velocidade igual ou pega do primeiro
-    
-    for j = 1:length(conf.lambda_total_vec)
-        lambda_val = conf.lambda_total_vec(j); 
-        % Ajuste: A teoria geralmente é 'per user' ou 'aggregate'. 
-        % Se a teoria for para o fluxo total, usa lambda_val. 
-        % Se for para comparar com o User, usaria lambda_val/n_u.
-        % Aqui seguimos o snippet (lambda_val direto).
-        
-        lambda_per_slot = lambda_val * conf.Symbol_Duration;
-        
-        % --- NP Theory (Slots) ---
-        num = lambda_per_slot * conf.k * (conf.k + conf.delta);
-        denom = 2 * (1 - conf.delta) * (lambda_per_slot * conf.k + 1 - conf.delta);
-        val_np_slots = (1/lambda_per_slot) + (conf.k/(1-conf.delta)) + (num/denom);
-        aeol_theory_np(j) = v * val_np_slots * conf.Symbol_Duration;
-        
-        % --- P Theory (Slots) ---
-        term_base = (exp(lambda_per_slot) - conf.delta) / (1 - conf.delta);
-        val_p_slots = (1/lambda_per_slot) * (term_base ^ conf.k);
-        aeol_theory_p(j) = v * val_p_slots * conf.Symbol_Duration;
-    end
 
     %% ====================================================================
     %  FIGURA 1: Resultados de AEoL (Sistema + Usuários + Teoria)
@@ -86,18 +57,8 @@ for i = 1:length(user_scenarios)
     
     color_sys_p  = [0 0.4470 0.7410];      % Azul
     color_sys_np = [0.8500 0.3250 0.0980]; % Laranja
-    color_theo   = [0.15 0.15 0.15];       % Cinza escuro
     
-    user_colors = lines(n_u); 
-    
-    % --- Theory Plots ---
-    plot(conf.lambda_total_vec, aeol_theory_np, ...
-        'LineStyle', '-', 'Color', color_theo, 'LineWidth', 2.5, ...
-        'DisplayName', 'Theory (NP)');
-        
-    plot(conf.lambda_total_vec, aeol_theory_p, ...
-        'LineStyle', '--', 'Color', color_theo, 'LineWidth', 2.5, ...
-        'DisplayName', 'Theory (P)');
+    user_colors = lines(n_u);   
     
     % --- Plot: Usuários Individuais ---
     for u = 1:n_u

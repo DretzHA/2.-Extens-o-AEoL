@@ -1,16 +1,20 @@
 function plot_sawtooth_trajectory(conf, n_users_to_plot)
-    % Gera uma realização única e plota:
-    % 1. Curva Real (AEoL): Inclui erro de medição (sensor_sigma).
-    % 2. Curva Ideal (AoI Scaled): Supõe erro de medição = 0.
+    % Gera uma realização única e plota o AGE OF INFORMATION (AoI).
+    % Compara:
+    % 1. LCFS Non-Preemptive (NP)
+    % 2. LCFS Preemptive (P)
+    % Considera canais com Erasure (HARQ/Retransmissão via tempo de serviço estendido).
     
-    fprintf('Gerando gráfico Sawtooth (Real vs Ideal)...\n');
+    fprintf('Gerando gráfico Sawtooth (AoI - NP vs P)...\n');
     
     % --- 1. Gerar dados para UMA realização ---
-    lambda_tot = conf.lambda_total_vec(end); 
+    idx_lambda = 7; 
+    lambda_tot = conf.lambda_total_vec(idx_lambda); 
     lambda_user = lambda_tot / conf.num_users;
     
     all_arrivals = [];
-    est_n_pkts = ceil(conf.Sim_Time * lambda_user * 1.5) + 50; 
+    % Gera pacotes suficientes para cobrir o tempo de simulação
+    est_n_pkts = ceil(conf.Sim_Time * lambda_user * 2) + 50; 
     
     for u = 1:conf.num_users
         dt = exprnd(1/lambda_user, est_n_pkts, 1);
@@ -24,76 +28,74 @@ function plot_sawtooth_trajectory(conf, n_users_to_plot)
     n_pkts = size(all_arrivals, 1);
     if n_pkts == 0, warning('Nenhum pacote gerado.'); return; end
     
-    % Serviços e Erros
+    % Serviços (com Erasure/HARQ) e Erros (não usados no AoI, mas mantidos na estrutura)
     services = get_erasure_service(n_pkts, conf.k, conf.delta, conf.Symbol_Duration);
     meas_errors = normrnd(0, conf.sensor_sigma, n_pkts, 1);
-    velocities = conf.velocities;
     
-    % Dados Completos
+    % Dados Completos [Chegada, Usuario, Servico, ErroMedicao]
     data_full = [all_arrivals, services, meas_errors];
     
-    % Rodar Lógica (Ex: NP)
-    completed = run_lcfs_np_plot(data_full, conf.Sim_Time);
+    % --- 2. Processar Filas ---
+    completed_np = run_lcfs_np_plot(data_full, conf.Sim_Time);
+    completed_p  = run_lcfs_p_plot(data_full, conf.Sim_Time);
     
     if n_users_to_plot > conf.num_users, n_users_to_plot = conf.num_users; end
     
     % =====================================================================
     % PLOTAGEM
     % =====================================================================
-    figure('Name', 'Trajectory Error: Real vs Ideal', 'Color', 'w', 'Position', [100, 100, 1000, 700]);
+    figure('Name', 'AoI Sawtooth: NP vs P', 'Color', 'w', 'Position', [100, 100, 1200, 800]);
     
-    % --- PLOT 1: Visão do Sistema (Real vs Ideal) ---
+    % Limites de Zoom para visualização (ex: primeiros 50s ou tudo)
+    time_limit = min(50, conf.Sim_Time);
+    
+    % --- PLOT 1: LCFS - Não Preemptivo (NP) ---
     subplot(2, 1, 1); hold on; grid on; box on;
+    title('Age of Information (AoI) - LCFS Non-Preemptive', 'Interpreter', 'latex', 'FontSize', 14);
     
-    % Obter as curvas
-    v_mean = mean(velocities);
-    [t_vec, err_real, err_ideal] = generate_error_curve(completed, v_mean, conf.Sim_Time);
+    [t_vec_np, aoi_np] = generate_aoi_curve(completed_np, conf.Sim_Time);
     
-    % 1. Plot Ideal (Fundo, tracejado verde)
-    plot(t_vec, err_ideal, '--', 'Color', [0 0.6 0], 'LineWidth', 1.5, ...
-         'DisplayName', 'Ideal (No Meas. Error)');
+    % Plot da curva de AoI
+    plot(t_vec_np, aoi_np, '-', 'Color', 'b', 'LineWidth', 1.2, 'DisplayName', 'AoI System (NP)');
     
-    % 2. Plot Real (Frente, sólido preto/azul)
-    % Preenchimento opcional para destacar a diferença
-    % fill([t_vec, fliplr(t_vec)], [err_real, fliplr(err_ideal)], 'r', 'FaceAlpha', 0.1, 'EdgeColor', 'none');
-    
-    plot(t_vec, err_real, '-', 'Color', 'k', 'LineWidth', 1.2, ...
-         'DisplayName', 'Real (With Meas. Error)');
-    
-    % Marcadores de Atualização
-    sys_updates = sortrows(completed, 1);
-    if ~isempty(sys_updates)
-        plot(sys_updates(:,1), zeros(size(sys_updates,1),1), '^', ...
-             'MarkerFaceColor', 'r', 'MarkerEdgeColor', 'none', 'MarkerSize', 6, ...
-             'DisplayName', 'Updates');
+    % Marcadores de entrega (Updates)
+    if ~isempty(completed_np)
+        % No eixo X é o tempo de entrega (FinishTime), no Y é o AoI naquele instante (Finish - Gen)
+        finish_times = completed_np(:,1);
+        gen_times = completed_np(:,2);
+        aoi_peaks = finish_times - gen_times; 
+        plot(finish_times, aoi_peaks, 'v', 'MarkerFaceColor', 'b', 'MarkerEdgeColor', 'none', ...
+             'MarkerSize', 5, 'DisplayName', 'Updates');
     end
     
-    title('System Error Evolution: Real vs Ideal', 'Interpreter', 'latex', 'FontSize', 14);
-    ylabel('Position Error (m)', 'Interpreter', 'latex');
+    ylabel('Age of Information (s)', 'Interpreter', 'latex');
+    xlim([0, time_limit]);
+    ylim([0, max(aoi_np)*1.05]);
     legend('Location', 'best');
-    
-    % Limites (Zoom inicial)
-    xlim([0, min(50, conf.Sim_Time)]); 
-    ylim([0, max(err_real)*1.1]);
-    
-    % --- PLOT 2: Usuários Individuais (Apenas Real para não poluir) ---
+
+    % --- PLOT 2: LCFS - Preemptivo (P) ---
     subplot(2, 1, 2); hold on; grid on; box on;
-    title('Individual User Trajectories (Real Error)', 'Interpreter', 'latex', 'FontSize', 14);
+    title('Age of Information (AoI) - LCFS Preemptive', 'Interpreter', 'latex', 'FontSize', 14);
     
-    colors = lines(n_users_to_plot);
-    for u = 1:n_users_to_plot
-        mask = (completed(:, 3) == u);
-        data_u = completed(mask, :);
-        v_u = velocities(u);
-        
-        [t_u, err_u_real, ~] = generate_error_curve(data_u, v_u, conf.Sim_Time);
-        plot(t_u, err_u_real, '-', 'Color', colors(u,:), 'LineWidth', 1.2, ...
-             'DisplayName', sprintf('User %d', u));
+    [t_vec_p, aoi_p] = generate_aoi_curve(completed_p, conf.Sim_Time);
+    
+    % Plot da curva de AoI
+    plot(t_vec_p, aoi_p, '-', 'Color', 'r', 'LineWidth', 1.2, 'DisplayName', 'AoI System (P)');
+    
+    % Marcadores de entrega
+    if ~isempty(completed_p)
+        finish_times = completed_p(:,1);
+        gen_times = completed_p(:,2);
+        aoi_peaks = finish_times - gen_times; 
+        plot(finish_times, aoi_peaks, 'v', 'MarkerFaceColor', 'r', 'MarkerEdgeColor', 'none', ...
+             'MarkerSize', 5, 'DisplayName', 'Updates');
     end
     
     xlabel('Time (s)', 'Interpreter', 'latex');
-    ylabel('Error (m)', 'Interpreter', 'latex');
-    xlim([0, min(50, conf.Sim_Time)]);
+    ylabel('Age of Information (s)', 'Interpreter', 'latex');
+    xlim([0, time_limit]);
+    % Ajusta escala Y baseada no NP para facilitar comparação visual, ou usa auto
+    % ylim([0, max(aoi_np)*1.05]); 
     legend('Location', 'best');
     
 end
@@ -102,83 +104,71 @@ end
 %  HELPERS
 % =========================================================================
 
-function [t_out, err_out_real, err_out_ideal] = generate_error_curve(completed_data, v, T_max)
-    % Gera vetores de tempo e erro (Real e Ideal)
+function [t_out, aoi_out] = generate_aoi_curve(completed_data, T_max)
+    % Gera vetores de tempo e AoI
+    % AoI(t) = t - t_generation_of_last_received_packet
     
-    data = sortrows(completed_data, 1);
+    % Se nada foi entregue, assume geração t=0
+    if isempty(completed_data)
+        t_out = [0, T_max];
+        aoi_out = [0, T_max];
+        return;
+    end
+
+    data = sortrows(completed_data, 1); % Ordenar por tempo de entrega (Finish Time)
     
     t_out = [];
-    err_out_real = [];
-    err_out_ideal = [];
+    aoi_out = [];
     
     current_t = 0;
-    last_gen = 0;
-    last_err = 0; 
+    last_gen = 0; % Assumimos que no t=0 temos informação fresca (AoI=0) ou gen=0
     
-    dt_res = 0.05; % Resolução fina para ver o "V" shape
+    dt_res = 0.05; % Resolução fina
     
     finish_times = data(:, 1);
     gen_times    = data(:, 2);
-    meas_errors  = data(:, 4); 
     
     for k = 1:length(finish_times)
         next_t = finish_times(k);
         if next_t > T_max, next_t = T_max; end
         
         if next_t > current_t
+            % Segmento entre a atualização anterior e a atual
             t_seg = current_t : dt_res : next_t;
             if t_seg(end) ~= next_t, t_seg = [t_seg, next_t]; end
             
-            % --- CÁLCULO CORE ---
-            % 1. Ideal: O erro de medição é assumido como 0. 
-            %    Erro = v * (t - t_gen). Sempre >= 0.
-            %    (t_seg - last_gen) é a "Idade" (AoI).
-            seg_ideal = abs(v * (t_seg - last_gen)); 
-            
-            % 2. Real: Inclui o last_err (pode ser negativo).
-            %    Erro = |v * (t - t_gen) + erro_sensor|
-            seg_real  = abs(v * (t_seg - last_gen) + last_err);
+            % Cálculo do AoI: Crescimento Linear com inclinação 1
+            seg_aoi = t_seg - last_gen;
             
             t_out = [t_out, t_seg];
-            err_out_ideal = [err_out_ideal, seg_ideal];
-            err_out_real  = [err_out_real, seg_real];
+            aoi_out = [aoi_out, seg_aoi];
         end
         
+        % Update State
         current_t = next_t;
-        last_gen = gen_times(k);
-        last_err = meas_errors(k);
+        last_gen = gen_times(k); % O sistema agora conhece o pacote gerado em gen_times(k)
         
         if current_t >= T_max, break; end
     end
     
-    % Resto até T_max
+    % Preencher o restante do tempo até T_max
     if current_t < T_max
         t_seg = current_t : dt_res : T_max;
-        
-        seg_ideal = abs(v * (t_seg - last_gen));
-        seg_real  = abs(v * (t_seg - last_gen) + last_err);
-        
+        seg_aoi = t_seg - last_gen;
         t_out = [t_out, t_seg];
-        err_out_ideal = [err_out_ideal, seg_ideal];
-        err_out_real  = [err_out_real, seg_real];
+        aoi_out = [aoi_out, seg_aoi];
     end
 end
 
 function S = get_erasure_service(n, k, delta, sym_dur)
+    % Gera tempo de serviço baseado em Binomial Negativa (Erasure Channel)
     if delta >= 1, delta = 0.999; end 
     failures = nbinrnd(k, 1-delta, n, 1);
     S = (k + failures) * sym_dur;
 end
 
 function completed = run_lcfs_np_plot(data, T_max)
-    % Recria a fila NP para obter os tempos de saída
-    % data input: [Arr, Serv, Err, User] -> NÃO, o input no main é [Arr, User, Serv, Err]
-    % Ajustando para ler colunas corretamente
-    
-    % Data structure esperada aqui baseada na chamada:
-    % data_full = [all_arrivals(1,2), services(3), meas_errors(4)];
-    % col 1: Time, col 2: User, col 3: Service, col 4: Error
-    
+    % data: [Arrival, User, Service, Error]
     N = size(data, 1);
     completed = [];
     served_mask = false(N, 1);
@@ -186,25 +176,72 @@ function completed = run_lcfs_np_plot(data, T_max)
     
     while true
         if time_now >= T_max, break; end
+        % Encontra pacotes que já chegaram e não foram servidos
         queue = find(data(:,1) <= time_now & ~served_mask);
+        
         if isempty(queue)
+            % Ocioso: avança para a próxima chegada
             upcoming = find(data(:,1) > time_now & ~served_mask, 1);
             if isempty(upcoming), break; end
             time_now = data(upcoming, 1); continue;
         end
+        
+        % LCFS: Pega o último que chegou
         target = queue(end);
         
-        if length(queue) > 1, served_mask(queue(1:end-1)) = true; end
+        % Drop logic (NP): Todos os outros na fila são descartados se for buffer=1
+        % Se buffer infinito mas política LCFS pura, eles ficam lá, mas 
+        % geralmente em AoI assume-se buffer de tamanho 1 ou substituição.
+        % Aqui assumimos fila com "discard old" implícito ao pegar o queue(end)
+        % e marcar os outros como servidos/dropados?
+        % No código original: "if length(queue) > 1, served_mask(...) = true;"
+        % Isso implica DROP dos pacotes velhos (Gerenciamento de fila LCFS com descarte).
+        if length(queue) > 1
+            served_mask(queue(1:end-1)) = true; 
+        end
         
         fin_t = time_now + data(target, 3);
         
         if fin_t <= T_max
-            % Output: [Finish, Gen, User, Error]
+            % [Finish, Gen, User, Error]
             completed = [completed; fin_t, data(target, 1), data(target, 2), data(target, 4)];
             time_now = fin_t;
         else
             time_now = fin_t; 
         end
         served_mask(target) = true;
+    end
+end
+
+function completed = run_lcfs_p_plot(data, T_max)
+    % Simulação LCFS Preemptiva
+    % Se chegar um pacote novo enquanto serve, o atual é descartado.
+    
+    N = size(data, 1);
+    completed = [];
+    
+    % Iterar sobre todos os pacotes
+    for k = 1:N-1
+        arr_curr = data(k, 1);
+        arr_next = data(k+1, 1);
+        serv_curr = data(k, 3);
+        
+        finish_time = arr_curr + serv_curr;
+        
+        % Condição de Sobrevivência na Preempção:
+        % O pacote deve terminar ANTES que o próximo chegue.
+        if finish_time <= arr_next && finish_time <= T_max
+             % [Finish, Gen, User, Error]
+             completed = [completed; finish_time, arr_curr, data(k, 2), data(k, 4)];
+        else
+            % Foi preemptado pelo pacote k+1 (Drop)
+        end
+    end
+    
+    % Tratar o último pacote (ninguém para preemptar ele)
+    last_idx = N;
+    finish_time = data(last_idx, 1) + data(last_idx, 3);
+    if finish_time <= T_max
+        completed = [completed; finish_time, data(last_idx, 1), data(last_idx, 2), data(last_idx, 4)];
     end
 end
