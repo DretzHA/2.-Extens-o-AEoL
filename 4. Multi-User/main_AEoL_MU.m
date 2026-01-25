@@ -4,13 +4,13 @@ clc; clear; close all;
 %  CONFIGURAÇÕES
 %  ========================================================================
 conf.mu = 1;                       
-conf.rho_total_vec = 0.1:0.1:0.9;
+conf.rho_total_vec = 0.1:0.1:1;
 conf.lambda_total_vec = conf.rho_total_vec * conf.mu;
 
-conf.N_updates = 200;              
-conf.N_MC = 500; % Aumentei um pouco para estabilizar a simulação
+conf.N_updates = 100;              
+conf.N_MC = 1; % Aumentei um pouco para estabilizar a simulação
 
-user_scenarios = [2 4];
+user_scenarios = [2];
 colors = lines(length(user_scenarios)); % Cores: Azul, Laranja, Amarelo
 
 % Preparação da Figura

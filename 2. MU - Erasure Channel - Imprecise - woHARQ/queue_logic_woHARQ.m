@@ -1,5 +1,5 @@
 function [avg_aeol_user, avg_aeol_system, num_processed_total, actuation_time_per_user, processed_counts_per_user] = ...
-    queue_logic_trajectory(arrivals, services, errors, velocities, type, T_max, is_successful)
+    queue_logic_woHARQ(arrivals, services, errors, velocities, type, T_max, is_successful)
     
     num_users = length(velocities);
     

@@ -11,7 +11,11 @@ function avg_aoi_per_user = queue_logic_multi(arrivals, services, num_users, typ
     else
         completed = run_lcfs_p(arrivals, services);
     end
-    
+
+    abc=length(completed(:,1));
+    if abc<5
+        hjsd=3;%teste
+    end
     % CÁLCULO DA ÁREA SOB A CURVA (AoI) PARA CADA UTILIZADOR
     avg_aoi_per_user = zeros(num_users, 1);
     

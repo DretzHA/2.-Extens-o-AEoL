@@ -1,4 +1,4 @@
-function plot_trajectory_tracking_comparison(conf)
+function plot_trajectory_woHARQ(conf)
     % Gera comparação visual de Rastreamento de Trajetória: NP vs Preemptivo
     % Baseado na mesma semente de chegadas/erros para comparação justa.
     fprintf('Gerando comparação de Rastreamento (NP vs P)...\n');

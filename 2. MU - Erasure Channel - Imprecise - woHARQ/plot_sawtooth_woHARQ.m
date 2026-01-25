@@ -1,4 +1,4 @@
-function plot_sawtooth_trajectory(conf, n_users_to_plot)
+function plot_sawtooth_woHARQ(conf, n_users_to_plot)
     % Gera uma realização única e plota Trajetória Real vs Ideal
     % NO HARQ Version
     
