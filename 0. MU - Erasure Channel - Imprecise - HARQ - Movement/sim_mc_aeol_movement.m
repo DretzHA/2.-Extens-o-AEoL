@@ -17,7 +17,7 @@ function [Sim_AEoL_NP, Sim_AEoL_P, Sim_Sys_NP, Sim_Sys_P, ...
         acc_usr_np = zeros(N_u, 1); acc_usr_p = zeros(N_u, 1);
         acc_cnt_np = zeros(N_u, 1); acc_cnt_p = zeros(N_u, 1);
 
-        parfor k = 1:conf.N_MC % 
+        for k = 1:conf.N_MC % 
             
             % 1. Gerar Trajetória RWP 2D (Comum para P e NP nesta iteração)
             % Retorna [t_start, t_end, start_x, start_y, vel_x, vel_y]
@@ -86,9 +86,19 @@ function segments = generate_rwp_path(T_max, L, v)
     t_curr = 0;
     curr_pos = rand(1, 2) * L; % Posição inicial aleatória
     segments = [];
+
+    % --- OPÇÃO 2: Movimento 1D (X aleatório, Y fixo) ---
+    % Descomente a linha abaixo para fixar o Y (ex: no meio da área L/2)
+    % curr_pos = [rand() * L, L/2];
     
     while t_curr < T_max
         target_pos = rand(1, 2) * L;
+
+        % --- OPÇÃO 2: Movimento 1D (Varia X, mantém Y) ---
+        % Descomente a linha abaixo. O Y do alvo é igual ao Y atual.
+        % target_pos = [rand() * L, curr_pos(2)];
+
+
         dist = norm(target_pos - curr_pos);
         
         if dist == 0

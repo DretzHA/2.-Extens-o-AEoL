@@ -3,12 +3,12 @@ clc; clear; close all;
 %% ========================================================================
 %  CONFIGURAÇÕES DO CENÁRIO 2D (RWP)
 %  ========================================================================
-conf.k = 1;          % Quantidade de simbolos
+conf.k = 16;          % Quantidade de simbolos
 conf.delta = 0.2;    % Probabilidade de erasure
 conf.velocity = 1;    % Velocidade (m/s)
 conf.area_side = 50; % Área 10x10m
 
-conf.Symbol_Duration = 1; 
+conf.Symbol_Duration = 1e-1; 
 
 % Parâmetros do Canal (M/G/1)
 avg_service_time = conf.k / (1 - conf.delta); 
@@ -16,20 +16,20 @@ avg_service_time_sec = avg_service_time * conf.Symbol_Duration;
 mu_eff = 1 / avg_service_time_sec; 
 conf.mu = mu_eff;
 
-conf.rho_total_vec = 0.5:0.5:10; 
+conf.rho_total_vec = 0.1:0.15:5; 
 conf.lambda_total_vec = conf.rho_total_vec * mu_eff; 
 
 % --- Simulação ---
-conf.Sim_Time = 50;   
-conf.N_MC = 200;       % Monte Carlo
+conf.Sim_Time = 500;   
+conf.N_MC = 500;       % Monte Carlo
 conf.sensor_sigma = 2; % Erro do sensor (m)
-user_scenarios = [1]; % Cenários de teste
+user_scenarios = [2]; % Cenários de teste
   
 for i = 1:length(user_scenarios)
     n_u = user_scenarios(i); 
     conf.num_users = n_u;  
     
-    fprintf('Simulando AEoL 2D (RWP) para N=%d usuários...\n', n_u);
+    fprintf('AEoL 2D (RWP) para N=%d usuários...\n', n_u);
    
     [Sim_AEoL_NP, Sim_AEoL_P, Sim_Sys_NP, Sim_Sys_P, ...
      Sim_User_Counts_NP, Sim_User_Counts_P] = sim_mc_aeol_movement(conf);

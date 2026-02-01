@@ -21,12 +21,12 @@ function [avg_aeol_user, avg_aeol_system, num_processed_total, processed_counts_
     % completed: [FinishTime, GenTime, UserID, ErrX, ErrY]
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % Filtra atualizações do Usuário 1 para visualizar
-    user_id = 1;
-    user_updates = completed(completed(:, 3) == user_id, :);
-
-    % Chama a função de visualização
-    debug_visualize_mse(user_updates, path_segments, T_max);
+    % % Filtra atualizações do Usuário 1 para visualizar
+    % user_id = 1;
+    % user_updates = completed(completed(:, 3) == user_id, :);
+    % 
+    % % Chama a função de visualização
+    % debug_visualize_mse(user_updates, path_segments, T_max);
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -224,17 +224,28 @@ function completed = run_lcfs_np(data, T_max)
     time_now = 0;
     
     while true
-        if time_now >= T_max, break; end
+        if time_now >= T_max
+            break;
+        end
+
         queue = find(data(:,1) <= time_now & ~served_mask);
+
         if isempty(queue)
             upcoming = find(data(:,1) > time_now & ~served_mask, 1);
-            if isempty(upcoming), break; end
+            if isempty(upcoming)
+                break; 
+            end
             time_now = data(upcoming, 1); continue;
         end
+
         target = queue(end);
-        if length(queue) > 1, served_mask(queue(1:end-1)) = true; end
+
+        if length(queue) > 1
+            served_mask(queue(1:end-1)) = true; 
+        end
         
         fin_t = time_now + data(target, 3);
+
         if fin_t <= T_max
             completed = [completed; fin_t, data(target, 1), data(target, 2), data(target, 4), data(target, 5)];
             time_now = fin_t;
